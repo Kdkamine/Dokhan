@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>تسيير المحل</title>
+
+<style>
+*{box-sizing:border-box}
+body{
+  margin:0;
+  font-family:Arial,sans-serif;
+  background:#f3f4f6;
+  color:#111827
+}
+header{
+  background:#111827;
+  color:white;
+  padding:18px;
+  text-align:center;
+  font-size:22px;
+  font-weight:bold
+}
+nav{
+  display:flex;
+  overflow:auto;
+  background:white;
+  border-bottom:1px solid #ddd
+}
+nav button{
+  flex:1;
+  min-width:100px;
+  padding:14px 8px;
+  border:0;
+  background:white;
+  font-weight:bold
+}
+nav button.active{
+  background:#111827;
+  color:white
+}
+.page{display:none;padding:15px}
+.page.active{display:block}
+
+.card{
+  background:white;
+  padding:15px;
+  margin-bottom:12px;
+  border-radius:14px;
+  box-shadow:0 2px 8px #00000012
+}
+.grid{
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:10px
+}
+.stat{
+  text-align:center;
+  padding:18px 8px
+}
+.stat b{
+  display:block;
+  font-size:24px;
+  margin-top:7px
+}
+
+input,select{
+  width:100%;
+  padding:13px;
+  margin:6px 0;
+  border:1px solid #ddd;
+  border-radius:9px;
+  font-size:16px
+}
+button.action{
+  width:100%;
+  padding:13px;
+  border:0;
+  border-radius:9px;
+  background:#111827;
+  color:white;
+  font-size:16px;
+  margin-top:7px
+}
+button.delete{
+  background:#dc2626
+}
+.item{
+  padding:12px 0;
+  border-bottom:1px solid #eee
+}
+.item:last-child{border-bottom:0}
+.small{color:#6b7280;font-size:13px}
+.price{font-weight:bold}
+.total{
+  font-size:22px;
+  font-weight:bold;
+  text-align:center;
+  margin:12px 0
+}
+.empty{
+  text-align:center;
+  color:#777;
+  padding:20px
+}
+</style>
+</head>
+
+<body>
+
+<header>📊 تسيير المحل</header>
+
+<nav>
+<button class="active" onclick="showPage('home',this)">الرئيسية</button>
+<button onclick="showPage('sale',this)">بيع</button>
+<button onclick="showPage('stock',this)">المخزون</button>
+<button onclick="showPage('credit',this)">الكريدي</button>
+</nav>
+
+<!-- الرئيسية -->
+<section id="home" class="page active">
+
+<div class="grid">
+
+<div class="card stat">
+المبيعات اليوم
+<b id="todaySales">0 دج</b>
+</div>
+
+<div class="card stat">
+الكريدي
+<b id="totalCredit">0 دج</b>
+</div>
+
+<div class="card stat">
+عدد المنتجات
+<b id="productCount">0</b>
+</div>
+
+<div class="card stat">
+الصندوق
+<b id="cashTotal">0 دج</b>
+</div>
+
+</div>
+
+<div class="card">
+<h3>آخر العمليات</h3>
+<div id="recentSales"></div>
+</div>
+
+</section>
+
+
+<!-- البيع -->
+<section id="sale" class="page">
+
+<div class="card">
+
+<h3>🛒 عملية بيع</h3>
+
+<label>المنتج</label>
+<select id="saleProduct"></select>
+
+<label>الكمية</label>
+<input id="saleQty" type="number" min="1" value="1">
+
+<label>نوع الدفع</label>
+<select id="paymentType">
+<option value="cash">نقداً</option>
+<option value="credit">كريدي</option>
+</select>
+
+<div id="customerBox">
+<label>اسم الزبون إذا كان كريدي</label>
+<input id="customerName" placeholder="اسم الزبون">
+</div>
+
+<div class="total">
+المجموع: <span id="saleTotal">0</span> دج
+</div>
+
+<button class="action" onclick="makeSale()">تسجيل البيع</button>
+
+</div>
+</section>
+
+
+<!-- المخزون -->
+<section id="stock" class="page">
+
+<div class="card">
+
+<h3>➕ إضافة منتج</h3>
+
+<input id="productName" placeholder="اسم المنتج">
+
+<input id="productPrice"
+type="number"
+placeholder="سعر البيع">
+
+<input id="productStock"
+type="number"
+placeholder="الكمية">
+
+<button class="action" onclick="addProduct()">
+إضافة المنتج
+</button>
+
+</div>
+
+<div class="card">
+<h3>📦 المنتجات</h3>
+<div id="products"></div>
+</div>
+
+</section>
+
+
+<!-- الكريدي -->
+<section id="credit" class="page">
+
+<div class="card">
+
+<h3>💳 الزبائن والكريدي</h3>
+
+<div id="credits"></div>
+
+</div>
+
+</section>
+
+
+<script>
+
+let products =
+JSON.parse(localStorage.getItem("products") || "[]");
+
+let sales =
+JSON.parse(localStorage.getItem("sales") || "[]");
+
+let credits =
+JSON.parse(localStorage.getItem("credits") || "[]");
+
+
+function save(){
+
+localStorage.setItem(
+"products",
+JSON.stringify(products)
+);
+
+localStorage.setItem(
+"sales",
+JSON.stringify(sales)
+);
+
+localStorage.setItem(
+"credits",
+JSON.stringify(credits)
+);
+
+render();
+
+}
+
+
+function money(n){
+
+return Number(n).toLocaleString("fr-DZ")+" دج";
+
+}
+
+
+function showPage(id,button){
+
+document.querySelectorAll(".page")
+.forEach(x=>x.classList.remove("active"));
+
+document.getElementById(id)
+.classList.add("active");
+
+document.querySelectorAll("nav button")
+.forEach(x=>x.classList.remove("active"));
+
+button.classList.add("active");
+
+render();
+
+}
+
+
+function addProduct(){
+
+let name =
+document.getElementById("productName").value.trim();
+
+let price =
+Number(document.getElementById("productPrice").value);
+
+let stock =
+Number(document.getElementById("productStock").value);
+
+if(!name || price<=0 || stock<0){
+
+alert("دخل معلومات صحيحة");
+
+return;
+
+}
+
+products.push({
+
+id:Date.now(),
+
+name:name,
+
+price:price,
+
+stock:stock
+
+});
+
+document.getElementById("productName").value="";
+document.getElementById("productPrice").value="";
+document.getElementById("productStock").value="";
+
+save();
